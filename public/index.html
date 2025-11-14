@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fairyland +</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { background: #000; color: #fff; font-family: 'Segoe UI', sans-serif; padding-top: 20px; }
+        .navbar { background: #111; border-bottom: 1px solid #333; padding: 0.8rem 1rem; }
+        .navbar-brand { 
+            font-weight: bold; 
+            color: #ff66cc !important; 
+            font-size: 1.6rem; 
+            letter-spacing: 1px; 
+            cursor: pointer; 
+        }
+        .navbar-brand span { 
+            color: #ff66cc !important; 
+        }
+        .video-card { background: #111; border: 1px solid #333; border-radius: 10px; overflow: hidden; transition: 0.3s; cursor: pointer; }
+        .video-card:hover { transform: translateY(-6px); box-shadow: 0 10px 25px rgba(255,102,204,0.3); }
+        .video-thumb { position: relative; }
+        .video-thumb video { width: 100%; height: 200px; object-fit: cover; }
+        .play-icon { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 3rem; color: rgba(255,255,255,0.8); opacity: 0; transition: 0.3s; }
+        .video-card:hover .play-icon { opacity: 1; }
+        .video-title { font-size: 1rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 8px 0 4px; }
+        .stats { font-size: 0.85rem; color: #aaa; }
+        .search-box { max-width: 500px; background: #222; border: 1px solid #444; color: #fff; }
+        .search-box::placeholder { color: #aaa; }
+        .hidden { display: none; }
+        .modal-content { background: #111; color: #fff; border: 1px solid #444; }
+        .modal-header, .modal-footer { border-color: #444; }
+        .btn-success { background: #ff66cc; border: none; }
+        .btn-success:hover { background: #ff4da6; }
+    </style>
+</head>
+<body>
+
+    <div id="ageGate" class="container text-center mt-5">
+        <div class="card bg-dark text-white p-5" style="max-width: 500px; margin: auto; border-radius: 15px;">
+            <h3 class="text-danger">CẢNH BÁO NỘI DUNG 18+</h3>
+            <p>Bạn phải <strong>đủ 18 tuổi</strong> để truy cập.</p>
+            <div class="mt-4">
+                <button class="btn btn-success btn-lg me-3" id="confirm18">Tôi Đủ 18 Tuổi</button>
+                <button class="btn btn-danger btn-lg" id="deny18">Thoát</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="mainApp" class="container" style="display: none;">
+        <nav class="navbar navbar-expand-lg navbar-dark">
+            <div class="container-fluid">
+                <a class="navbar-brand" id="homeLink">Fairyland <span>+</span></a>
+                <div class="ms-auto d-flex align-items-center">
+                    <button class="btn btn-outline-light me-2 hidden" id="adminBtn">Admin</button>
+                    <button class="btn btn-outline-light me-2" id="loginBtn">Đăng Nhập</button>
+                    <button class="btn btn-outline-light hidden" id="logoutBtn">Đăng Xuất</button>
+                </div>
+            </div>
+        </nav>
+
+        <div class="text-center my-4">
+            <input type="text" class="form-control search-box d-inline-block" id="searchInput" placeholder="Tìm kiếm video...">
+        </div>
+
+        <div class="row" id="videoList"></div>
+    </div>
+
+    <!-- Modal Đăng Nhập -->
+    <div class="modal fade" id="loginModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Đăng Nhập Admin</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="loginFormElem">
+                        <div class="mb-3">
+                            <input type="text" class="form-control" id="loginUsername" placeholder="Tên đăng nhập" required>
+                        </div>
+                        <div class="mb-3">
+                            <input type="password" class="form-control" id="loginPassword" placeholder="Mật khẩu" required>
+                        </div>
+                        <button type="submit" class="btn btn-success w-100">Đăng Nhập</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Quản Lý Video -->
+    <div class="modal fade" id="adminModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Quản Lý Video</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <input type="text" class="form-control search-box" id="adminSearchInput" placeholder="Tìm video trong quản lý...">
+                    </div>
+                    <form id="videoForm" class="mb-4">
+                        <div class="mb-3">
+                            <label class="form-label">Tiêu Đề</label>
+                            <input type="text" class="form-control" id="videoTitle" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Upload Video (không bắt buộc khi chỉ đổi tên)</label>
+                            <input type="file" class="form-control" id="videoFile" accept="video/*">
+                        </div>
+                        <button type="submit" class="btn btn-success" id="videoSubmitBtn">Thêm Video</button>
+                        <button type="button" class="btn btn-secondary" id="videoCancelBtn" style="display:none;">Hủy</button>
+                    </form>
+                    <div class="row" id="adminVideoList"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let token = localStorage.getItem('token');
+        let isAdmin = false;
+        let editingFilename = null;
+        let allVideos = [];
+
+        if (sessionStorage.getItem('ageVerified') === 'true') {
+            document.getElementById('ageGate').style.display = 'none';
+            document.getElementById('mainApp').style.display = 'block';
+            checkAuth().then(() => loadVideos());
+        } else {
+            document.getElementById('confirm18').addEventListener('click', () => {
+                sessionStorage.setItem('ageVerified', 'true');
+                document.getElementById('ageGate').style.display = 'none';
+                document.getElementById('mainApp').style.display = 'block';
+                checkAuth().then(() => loadVideos());
+            });
+            document.getElementById('deny18').addEventListener('click', () => {
+                window.location.href = 'https://google.com';
+            });
+        }
+
+        async function loadVideos() {
+            const res = await fetch('/api/videos');
+            allVideos = await res.json();
+            displayVideos(allVideos);
+        }
+
+        function displayVideos(videosToShow, containerId = 'videoList') {
+            const videoList = document.getElementById(containerId);
+            videoList.innerHTML = '';
+            videosToShow.forEach(video => {
+                const card = `
+                    <div class="col-md-4 mb-4">
+                        <div class="video-card" data-filename="${video.filename}" ${containerId === 'adminVideoList' ? 'data-admin="true"' : ''}>
+                            <div class="video-thumb">
+                                <video muted loop class="w-100">
+                                    <source src="/videos/${video.filename}" type="video/mp4">
+                                </video>
+                                <div class="play-icon"><i class="fas fa-play"></i></div>
+                            </div>
+                            <div class="p-3">
+                                <div class="video-title">${video.title}</div>
+                                <div class="stats">
+                                    <small>Lượt xem: ${video.views || 0} • ${formatDate(video.uploadedAt)}</small>
+                                </div>
+                                ${containerId === 'adminVideoList' ? `
+                                <div class="mt-2 d-flex gap-1">
+                                    <button class="btn btn-sm btn-success downloadBtn">Download</button>
+                                    <button class="btn btn-sm btn-warning editBtn" data-filename="${video.filename}">Sửa</button>
+                                    <button class="btn btn-sm btn-danger deleteBtn" data-filename="${video.filename}">Xóa</button>
+                                </div>` : ''}
+                            </div>
+                        </div>
+                    </div>`;
+                videoList.innerHTML += card;
+            });
+
+            document.querySelectorAll(`#${containerId} .video-card`).forEach(card => {
+                const video = card.querySelector('video');
+                const filename = card.dataset.filename;
+                const isAdminCard = card.dataset.admin === 'true';
+
+                if (!isAdminCard) {
+                    card.addEventListener('click', () => {
+                        window.location.href = `watch.html?v=${filename}`;
+                    });
+                }
+
+                card.addEventListener('mouseenter', () => video.play());
+                card.addEventListener('mouseleave', () => { video.pause(); video.currentTime = 0; });
+
+                if (isAdminCard) {
+                    card.querySelector('.downloadBtn')?.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        downloadVideo(filename, video.title);
+                    });
+                    card.querySelector('.editBtn')?.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        editVideo({ target: { dataset: { filename } } });
+                    });
+                    card.querySelector('.deleteBtn')?.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        deleteVideo({ target: { dataset: { filename } } });
+                    });
+                }
+            });
+        }
+
+        function formatDate(iso) {
+            if (!iso) return 'Vừa đăng';
+            const d = new Date(iso);
+            const now = new Date();
+            const diff = now - d;
+            if (diff < 60000) return 'Vừa xong';
+            if (diff < 3600000) return `${Math.floor(diff/60000)} phút trước`;
+            if (diff < 86400000) return `${Math.floor(diff/3600000)} giờ trước`;
+            return `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`;
+        }
+
+        document.getElementById('searchInput').addEventListener('input', function() {
+            const q = this.value.toLowerCase();
+            const filtered = allVideos.filter(v => v.title.toLowerCase().includes(q));
+            displayVideos(q ? filtered : allVideos);
+        });
+
+        async function checkAuth() {
+            if (token) {
+                try {
+                    const res = await fetch('/api/auth/verify', { headers: { 'Authorization': `Bearer ${token}` } });
+                    if (res.ok) {
+                        const user = await res.json();
+                        isAdmin = user.role === 'admin';
+                        updateUI();
+                        return true;
+                    }
+                } catch (err) {}
+            }
+            logout();
+            return false;
+        }
+
+        function updateUI() {
+            document.getElementById('loginBtn').classList.toggle('hidden', !!token);
+            document.getElementById('logoutBtn').classList.toggle('hidden', !token);
+            document.getElementById('adminBtn').classList.toggle('hidden', !isAdmin);
+        }
+
+        function logout() {
+            token = null;
+            localStorage.removeItem('token');
+            isAdmin = false;
+            updateUI();
+            loadVideos();
+            bootstrap.Modal.getInstance(document.getElementById('adminModal'))?.hide();
+        }
+
+        document.getElementById('loginFormElem').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('loginUsername').value;
+            const password = document.getElementById('loginPassword').value;
+            const res = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+            if (res.ok) {
+                const { token: t } = await res.json();
+                token = t; localStorage.setItem('token', t);
+                await checkAuth();
+                bootstrap.Modal.getInstance(document.getElementById('loginModal')).hide();
+            } else {
+                alert('Sai tên đăng nhập hoặc mật khẩu!');
+            }
+        });
+
+        document.getElementById('loginBtn').addEventListener('click', () => new bootstrap.Modal(document.getElementById('loginModal')).show());
+        document.getElementById('adminBtn').addEventListener('click', () => { 
+            new bootstrap.Modal(document.getElementById('adminModal')).show(); 
+            displayAdminVideos(); 
+        });
+        document.getElementById('logoutBtn').addEventListener('click', logout);
+
+        document.getElementById('homeLink').addEventListener('click', (e) => {
+            e.preventDefault();
+            document.getElementById('searchInput').value = '';
+            loadVideos();
+        });
+
+        async function displayAdminVideos() {
+            const res = await fetch('/api/videos');
+            const adminVideos = await res.json();
+            displayVideos(adminVideos, 'adminVideoList');
+        }
+
+        function downloadVideo(filename, title) {
+            const a = document.createElement('a');
+            a.href = `/videos/${filename}`;
+            a.download = title + '.mp4';
+            a.click();
+        }
+
+        document.getElementById('videoForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const title = document.getElementById('videoTitle').value.trim();
+            if (!title) return alert('Vui lòng nhập tiêu đề!');
+            const file = document.getElementById('videoFile').files[0];
+            const formData = new FormData();
+            formData.append('title', title);
+            if (file) formData.append('video', file);
+
+            const url = editingFilename === null ? '/api/videos' : `/api/videos/file/${editingFilename}`;
+            const method = editingFilename === null ? 'POST' : 'PUT';
+
+            const res = await fetch(url, { method, headers: { 'Authorization': `Bearer ${token}` }, body: formData });
+            const data = await res.json();
+            if (res.ok) {
+                resetForm();
+                displayAdminVideos();
+                loadVideos();
+            } else {
+                alert(data.error || 'Lỗi!');
+            }
+        });
+
+        function editVideo(e) {
+            const filename = e.target.dataset.filename;
+            editingFilename = filename;
+            fetch('/api/videos').then(r => r.json()).then(videos => {
+                const video = videos.find(v => v.filename === filename);
+                document.getElementById('videoTitle').value = video.title;
+                document.getElementById('videoFile').required = false;
+                document.getElementById('videoSubmitBtn').textContent = 'Cập Nhật';
+                document.getElementById('videoCancelBtn').style.display = 'inline-block';
+            });
+        }
+
+        async function deleteVideo(e) {
+            if (confirm('Xóa video này?')) {
+                const filename = e.target.dataset.filename;
+                await fetch(`/api/videos/file/${filename}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
+                displayAdminVideos(); loadVideos();
+            }
+        }
+
+        document.getElementById('videoCancelBtn').addEventListener('click', resetForm);
+        function resetForm() {
+            editingFilename = null;
+            document.getElementById('videoForm').reset();
+            document.getElementById('videoFile').required = true;
+            document.getElementById('videoSubmitBtn').textContent = 'Thêm Video';
+            document.getElementById('videoCancelBtn').style.display = 'none';
+        }
+
+        document.getElementById('adminSearchInput').addEventListener('input', function() {
+            const q = this.value.toLowerCase();
+            fetch('/api/videos').then(r => r.json()).then(videos => {
+                const filtered = videos.filter(v => v.title.toLowerCase().includes(q));
+                displayVideos(filtered, 'adminVideoList');
+            });
+        });
+
+        document.addEventListener('contextmenu', e => e.preventDefault());
+        document.addEventListener('selectstart', e => e.preventDefault());
+        document.addEventListener('dragstart', e => e.preventDefault());
+        document.addEventListener('keydown', e => {
+            if (e.key === 'F12' || (e.ctrlKey && ['u','s','a','c'].includes(e.key))) e.preventDefault();
+        });
+
+        checkAuth();
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

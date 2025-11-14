@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Xem Video - Fairyland +</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { background: #000; color: #fff; padding: 20px 0; }
+        .video-container { max-width: 1400px; margin: auto; padding: 0 15px; }
+        .main-video { width: 100%; border-radius: 12px; }
+        .video-info h1 { font-size: 1.5rem; font-weight: bold; margin: 15px 0 8px; }
+        .video-stats { color: #aaa; font-size: 0.9rem; }
+        .like-btn { color: #ff66cc; cursor: pointer; font-size: 1.2rem; }
+        .like-btn.liked { color: #ffcc00; }
+        .back-home { color: #ff66cc; text-decoration: none; font-weight: bold; font-size: 1.2rem; }
+        .back-home:hover { text-decoration: underline; }
+        .action-btns { margin-top: 15px; }
+        .suggested-card { background: #111; border: 1px solid #333; border-radius: 10px; overflow: hidden; transition: 0.3s; cursor: pointer; }
+        .suggested-card:hover { transform: translateY(-4px); box-shadow: 0 8px 20px rgba(255,102,204,0.3); }
+        .suggested-thumb { position: relative; }
+        .suggested-thumb video { width: 100%; height: 120px; object-fit: cover; }
+        .play-icon { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 2rem; color: rgba(255,255,255,0.8); opacity: 0; transition: 0.3s; }
+        .suggested-card:hover .play-icon { opacity: 1; }
+        .suggested-title { font-size: 0.9rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 8px 0 4px; padding: 0 10px; }
+        .suggested-stats { font-size: 0.8rem; color: #aaa; padding: 0 10px 10px; }
+    </style>
+</head>
+<body>
+    <div class="video-container">
+        <div class="row">
+            <div class="col-lg-8">
+                <a href="index.html" class="back-home">Trang chủ</a>
+                <div class="mt-3">
+                    <video controls class="main-video" controlsList="nodownload" id="mainVideo">
+                        <source src="" type="video/mp4">
+                    </video>
+                    <div class="video-info">
+                        <h1 id="videoTitle">Đang tải...</h1>
+                        <div class="video-stats d-flex justify-content-between align-items-center">
+                            <span id="views">0 lượt xem</span>
+                            <span id="uploadDate"></span>
+                        </div>
+                        <div class="action-btns d-flex align-items-center">
+                            <span class="like-btn me-2" id="likeBtn">Like</span> <strong id="likeCount">0</strong>
+                            <button class="btn btn-sm btn-outline-light ms-4" id="downloadBtn">Download</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <h5 class="mb-3 text-pink">Video Đề Xuất</h5>
+                <div id="suggestedList" class="row g-3"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const filename = urlParams.get('v');
+        if (!filename) { alert('Video không tồn tại!'); location.href = 'index.html'; }
+
+        let hasViewed = false;
+
+        fetch(`/api/videos/file/${filename}`)
+            .then(r => { if (!r.ok) throw new Error('Not found'); return r.json(); })
+            .then(video => {
+                document.querySelector('#mainVideo source').src = `/videos/${video.filename}`;
+                document.getElementById('mainVideo').load();
+                document.getElementById('videoTitle').textContent = video.title;
+                document.getElementById('views').textContent = `${video.views} lượt xem`;
+                document.getElementById('uploadDate').textContent = new Date(video.uploadedAt).toLocaleString('vi-VN');
+                document.getElementById('likeCount').textContent = video.likes || 0;
+
+                document.getElementById('mainVideo').onplay = () => {
+                    if (!hasViewed) {
+                        fetch(`/api/videos/file/${filename}/view`, { method: 'POST' })
+                            .then(r => r.json())
+                            .then(d => document.getElementById('views').textContent = `${d.views} lượt xem`);
+                        hasViewed = true;
+                    }
+                };
+
+                document.getElementById('likeBtn').onclick = () => {
+                    fetch(`/api/videos/file/${filename}/like`, { method: 'POST' })
+                        .then(r => r.json())
+                        .then(d => {
+                            document.getElementById('likeCount').textContent = d.likes;
+                            document.getElementById('likeBtn').classList.add('liked');
+                        });
+                };
+
+                loadSuggested();
+            })
+            .catch(() => { alert('Video không tồn tại!'); location.href = 'index.html'; });
+
+        function loadSuggested() {
+            fetch('/api/videos').then(r => r.json()).then(videos => {
+                const filtered = videos.filter(v => v.filename !== filename).slice(0, 8);
+                const list = document.getElementById('suggestedList');
+                list.innerHTML = '';
+                filtered.forEach(v => {
+                    list.innerHTML += `
+                        <div class="col-12">
+                            <div class="suggested-card" onclick="location.href='watch.html?v=${v.filename}'">
+                                <div class="suggested-thumb">
+                                    <video muted loop><source src="/videos/${v.filename}" type="video/mp4"></video>
+                                    <div class="play-icon"><i class="fas fa-play"></i></div>
+                                </div>
+                                <div class="suggested-title">${v.title}</div>
+                                <div class="suggested-stats">${v.views || 0} lượt xem</div>
+                            </div>
+                        </div>`;
+                });
+                document.querySelectorAll('.suggested-card').forEach(c => {
+                    const vid = c.querySelector('video');
+                    c.onmouseenter = () => vid.play();
+                    c.onmouseleave = () => { vid.pause(); vid.currentTime = 0; };
+                });
+            });
+        }
+
+        document.getElementById('downloadBtn').onclick = () => alert('Chức năng đang phát triển');
+        document.oncontextmenu = e => e.preventDefault();
+        document.onkeydown = e => { if (e.key === 'F12' || (e.ctrlKey && ['u','s','a','c'].includes(e.key))) e.preventDefault(); };
+    </script>
+</body>
+</html>
